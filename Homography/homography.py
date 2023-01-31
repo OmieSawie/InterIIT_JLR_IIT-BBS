@@ -1,9 +1,12 @@
 import cv2
 import numpy as np
+import math
+import utils as ut
 
-img_read = cv2.imread("./bookImg.jpg")
+img_read = cv2.imread("./DC-CCS-2-EV-Socket.png")
 
-cap = cv2.VideoCapture("/dev/video2")
+# cap = cv2.VideoCapture("/dev/video2")
+cap = cv2.VideoCapture(0)
 
 #features
 sift = cv2.SIFT_create()
@@ -12,6 +15,8 @@ kp_image, desc_image = sift.detectAndCompute(img_read, None)
 #make cv2 windows
 cv2.namedWindow("Homography")
 cv2.moveWindow("Homography", 10, 10)
+cv2.namedWindow("imgC")
+cv2.moveWindow("imgC", 500, 500)
 
 # Feature matching
 index_params = dict(algorithm=0, trees=5)
@@ -27,6 +32,7 @@ while True:
     if (frame is not None):
 
         grayframe = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        imgC = frame.copy()
 
         kp_grayframe, desc_grayframe = sift.detectAndCompute(grayframe, None)
         matches = flann.knnMatch(desc_image, desc_grayframe, k=2)
@@ -51,6 +57,34 @@ while True:
                                               5.0)
 
             if matrix is not None:
+
+                ##########################################
+                A = np.matrix([[476.7, 0.0, 400.0], [0.0, 476.7, 400.0],
+                               [0.0, 0.0, 1.0]])
+                (R, T) = ut.decHomography(A, matrix)
+
+                Rot = ut.decRotation(R)
+                zR = np.matrix([[math.cos(Rot[2]), -math.sin(Rot[2])],
+                                [math.sin(Rot[2]),
+                                 math.cos(Rot[2])]])
+                cv2.putText(
+                    imgC, 'rX: {:0.2f} rY: {:0.2f} rZ: {:0.2f}'.format(
+                        Rot[0] * 180 / np.pi, Rot[1] * 180 / np.pi,
+                        Rot[2] * 180 / np.pi), (20, 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255))
+                cv2.putText(
+                    imgC, 'tX: {:0.2f} tY: {:0.2f} tZ: {:0.2f}'.format(
+                        T[0, 0], T[0, 1], T[0, 2]), (20, 40),
+                    cv2.FONT_HERSHEY_SIMPLEX, .5, (255, 255, 255))
+                pDot = np.dot((-200, -200), zR)
+                red_point = (int(pDot[0, 0]), int(pDot[0, 1]))
+                # cv2.circle(frame, (int(pDot[0, 0]) + train_pts[0],
+                #                    int(pDot[0, 1]) + train_pts[1]), 5,
+                #            (0, 0, 255), 2)
+
+                #############################################
+                # cv2.imshow("imgC", imgC)
+
                 matches_mask = mask.ravel().tolist()
 
                 #perspective transform
@@ -68,7 +102,7 @@ while True:
 
         cv2.drawKeypoints(grayframe, kp_grayframe, frame)
         # cv2.imshow("grayframe", grayframe)
-        cv2.imshow("Image", img3)
+        cv2.imshow("imgC", imgC)
         # cv2.imshow("Frame", frame)
 
         key = cv2.waitKey(1)
