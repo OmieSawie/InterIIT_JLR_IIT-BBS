@@ -2,15 +2,10 @@ import cv2
 import numpy as np
 import math
 import utils as ut
-import time
 
-img_read = cv2.imread("./Socket No BG.png")
+img_read = cv2.imread("./ccs2Socket.jpg")
 
 cap = cv2.VideoCapture("/dev/video2")
-while cap is None:
-    print("cap")
-    cap = cv2.VideoCapture("/dev/video2")
-
 # cap = cv2.VideoCapture(0)
 
 #features
@@ -21,19 +16,17 @@ kp_image, desc_image = sift.detectAndCompute(img_read, None)
 cv2.namedWindow("Homography")
 cv2.moveWindow("Homography", 10, 10)
 cv2.namedWindow("imgC")
-cv2.moveWindow("imgC", 500, 100)
+cv2.moveWindow("imgC", 500, 500)
 
 # Feature matching
 index_params = dict(algorithm=0, trees=5)
-search_params = dict(checks=50)
+search_params = dict()
 flann = cv2.FlannBasedMatcher(index_params, search_params)
 
 img_gray = cv2.cvtColor(img_read, cv2.COLOR_BGR2GRAY)
 img = img_read
 cv2.drawKeypoints(img_gray, kp_image, img)
 
-# time.sleep(1)
-counter = 0
 while True:
     _, frame = cap.read()
     if (frame is not None):
@@ -42,15 +35,7 @@ while True:
         imgC = frame.copy()
 
         kp_grayframe, desc_grayframe = sift.detectAndCompute(grayframe, None)
-
-        # if(des1 is not None and len(des1)>2 and des2 is not None and len(des2)>2):
-        # matches = flann.knnMatch(des1,des2,k=2)
-
-        if (desc_image is not None and len(desc_image) > 2
-                and desc_grayframe is not None and len(desc_grayframe) > 2):
-            matches = flann.knnMatch(desc_image, desc_grayframe, k=2)
-        else:
-            matches = []
+        matches = flann.knnMatch(desc_image, desc_grayframe, k=2)
 
         good_points = []
         for m, n in matches:
@@ -59,10 +44,9 @@ while True:
 
         img3 = cv2.drawMatches(img_gray, kp_image, grayframe, kp_grayframe,
                                good_points, grayframe, 1)
-        cv2.imshow("img3", img3)
 
         #homography
-        if len(good_points) > 9:
+        if len(good_points) > 7:
             query_pts = np.float32([
                 kp_image[m.queryIdx].pt for m in good_points
             ]).reshape(-1, 1, 2)
@@ -117,8 +101,8 @@ while True:
         # cv2.imshow("grayFrame", grayframe)
 
         cv2.drawKeypoints(grayframe, kp_grayframe, frame)
-        # cv2.imshow("img", grayframe)
-        # cv2.imshow("imgC", imgC)
+        cv2.imshow("img", img_gray)
+        cv2.imshow("imgC", imgC)
         # cv2.imshow("Frame", frame)
 
         key = cv2.waitKey(1)
