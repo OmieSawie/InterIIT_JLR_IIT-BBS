@@ -3,10 +3,11 @@ import numpy as np
 import math
 import utils as ut
 import time
+from collections import deque
 
 img_read = cv2.imread("./Socket No BG.png")
 
-cap = cv2.VideoCapture("/dev/video2")
+cap = cv2.VideoCapture("/dev/video0")
 assert cap.isOpened()
 
 # cap = cv2.VideoCapture(0)
@@ -20,6 +21,8 @@ cv2.namedWindow("Homography")
 cv2.moveWindow("Homography", 10, 20)
 cv2.namedWindow("matchesframe")
 cv2.moveWindow("matchesframe", 10, 400)
+cv2.namedWindow("imgC")
+cv2.moveWindow("imgC", 400, 400)
 
 # Feature matching
 index_params = dict(algorithm=0, trees=5)
@@ -27,10 +30,14 @@ search_params = dict(checks=50)
 flann = cv2.FlannBasedMatcher(index_params, search_params)
 
 img_gray = cv2.cvtColor(img_read, cv2.COLOR_BGR2GRAY)
+print(img_gray.shape[:2])
 img = img_read
 cv2.drawKeypoints(img_gray, kp_image, img)
 
-centroid = []
+Rot_deque = deque([], 20)
+np_Final_Rot_deque = deque([], 20)
+Trans_deque = deque([], 20)
+np_Final_Trans_deque = deque([], 20)
 
 while True:
     _, frame = cap.read()
@@ -70,11 +77,15 @@ while True:
             if matrix is not None:
 
                 ##########################################
-                A = np.matrix([[476.7, 0.0, 400.0], [0.0, 476.7, 400.0],
+                A = np.matrix([[476.7, 0.0, 300.0], [0.0, 476.7, 300.0],
                                [0.0, 0.0, 1.0]])
                 (R, T) = ut.decHomography(A, matrix)
 
                 Rot = ut.decRotation(R)
+
+                Rot_deque.append(Rot)
+                Trans_deque.append(T)
+
                 zR = np.matrix([[math.cos(Rot[2]), -math.sin(Rot[2])],
                                 [math.sin(Rot[2]),
                                  math.cos(Rot[2])]])
@@ -107,8 +118,6 @@ while True:
                 homography = cv2.polylines(frame, [np.int32(dst)], True,
                                            (255, 0, 0), 3)
 
-                centroid.append(np.int32(dst))
-
                 # print(dst)
 
                 cv2.imshow("Homography", homography)
@@ -122,6 +131,41 @@ while True:
 
         key = cv2.waitKey(1)
         if key == 27:
+            np_Rot_deque = np.array(Rot_deque)
+            np_Trans_deque = np.array(Trans_deque)
+            print(np_Trans_deque)
+            print(np_Trans_deque[0][0][1])
+            mean_Rot = np.mean(np_Rot_deque, axis=0)
+            mean_Trans = np.mean(np_Trans_deque, axis=0)
+            print(mean_Trans)
+            sd_Rot = np.std(np_Rot_deque, axis=0)
+            sd_Trans = np.std(np_Trans_deque, axis=0)
+
+            for x in range(20):
+                for y in range(3):
+                    if (np_Rot_deque[x][y] < mean_Rot[y] - 1 * sd_Rot[y] or
+                            np_Rot_deque[x][y] > mean_Rot[y] + 1 * sd_Rot[y]):
+                        print("Exitted")
+                        break
+                    if (np_Trans_deque[x][0][y] <
+                            mean_Trans[0][y] - 1 * sd_Trans[0][y]
+                            or np_Trans_deque[x][0][y] >
+                            mean_Trans[0][y] + 1 * sd_Trans[0][y]):
+                        print("Exitted2")
+                        break
+
+                    np_Final_Rot_deque.append(np_Rot_deque[x])
+                    np_Final_Trans_deque.append(np_Trans_deque[x])
+
+            np_Final_Rot_deque = np.multiply(np_Final_Rot_deque, 180 / np.pi)
+            np_Final_Rot_deque = np.round(np_Final_Rot_deque, 3)
+            np_Final_Trans_deque = np.round(np_Final_Trans_deque, 3)
+
+            print(np_Final_Trans_deque)
+            np_Output_Rot_Data = np.mean(np.array(np_Final_Rot_deque), axis=0)
+            np_Output_Trans_Data = np.mean(np.array(np_Final_Trans_deque),
+                                           axis=0)
+            print(np_Output_Trans_Data)
             # print(centroid)
             # np_centroid = np.array(centroid)
             # mean = np.mean(np_centroid, axis=0)
