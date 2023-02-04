@@ -5,9 +5,14 @@ import utils as ut
 import time
 from collections import deque
 
-img_read = cv2.imread("./Socket No BG.png")
+img_read = cv2.imread("./DC-CCS-2-EV-Socket.png")
 
-cap = cv2.VideoCapture("/dev/video0")
+cap = cv2.VideoCapture(2)
+
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+# cap = cv2.VideoCapture("./Trial1Video")
 assert cap.isOpened()
 
 # cap = cv2.VideoCapture(0)
@@ -48,15 +53,15 @@ while True:
 
         kp_grayframe, desc_grayframe = sift.detectAndCompute(grayframe, None)
 
-        if (desc_image is not None and len(desc_image) > 2
-                and desc_grayframe is not None and len(desc_grayframe) > 2):
+        if (desc_image is not None and len(desc_image) > 5
+                and desc_grayframe is not None and len(desc_grayframe) > 5):
             matches = flann.knnMatch(desc_image, desc_grayframe, k=2)
         else:
             matches = []
 
         good_points = []
         for m, n in matches:
-            if m.distance < 0.5 * n.distance:
+            if m.distance < 0.6 * n.distance:
                 good_points.append(m)
 
         matchesframe = cv2.drawMatches(img_gray, kp_image, grayframe,
@@ -64,7 +69,7 @@ while True:
         cv2.imshow("matchesframe", matchesframe)
 
         #homography
-        if len(good_points) > 10:
+        if len(good_points) > 7:
             query_pts = np.float32([
                 kp_image[m.queryIdx].pt for m in good_points
             ]).reshape(-1, 1, 2)
@@ -77,7 +82,10 @@ while True:
             if matrix is not None:
 
                 ##########################################
-                A = np.matrix([[476.7, 0.0, 300.0], [0.0, 476.7, 300.0],
+                # A = np.matrix([[476.7, 0.0, 300.0], [0.0, 476.7, 300.0],
+                #                [0.0, 0.0, 1.0]])
+                A = np.matrix([[599.18230376, 0.0, 771.98840751],
+                               [0.0, 578.63578377, 579.82013547],
                                [0.0, 0.0, 1.0]])
                 (R, T) = ut.decHomography(A, matrix)
 
@@ -133,11 +141,8 @@ while True:
         if key == 27:
             np_Rot_deque = np.array(Rot_deque)
             np_Trans_deque = np.array(Trans_deque)
-            print(np_Trans_deque)
-            print(np_Trans_deque[0][0][1])
             mean_Rot = np.mean(np_Rot_deque, axis=0)
             mean_Trans = np.mean(np_Trans_deque, axis=0)
-            print(mean_Trans)
             sd_Rot = np.std(np_Rot_deque, axis=0)
             sd_Trans = np.std(np_Trans_deque, axis=0)
 
@@ -145,13 +150,11 @@ while True:
                 for y in range(3):
                     if (np_Rot_deque[x][y] < mean_Rot[y] - 1 * sd_Rot[y] or
                             np_Rot_deque[x][y] > mean_Rot[y] + 1 * sd_Rot[y]):
-                        print("Exitted")
                         break
                     if (np_Trans_deque[x][0][y] <
                             mean_Trans[0][y] - 1 * sd_Trans[0][y]
                             or np_Trans_deque[x][0][y] >
                             mean_Trans[0][y] + 1 * sd_Trans[0][y]):
-                        print("Exitted2")
                         break
 
                     np_Final_Rot_deque.append(np_Rot_deque[x])
@@ -161,11 +164,11 @@ while True:
             np_Final_Rot_deque = np.round(np_Final_Rot_deque, 3)
             np_Final_Trans_deque = np.round(np_Final_Trans_deque, 3)
 
-            print(np_Final_Trans_deque)
             np_Output_Rot_Data = np.mean(np.array(np_Final_Rot_deque), axis=0)
             np_Output_Trans_Data = np.mean(np.array(np_Final_Trans_deque),
                                            axis=0)
-            print(np_Output_Trans_Data)
+            print("np_Output_Rot_Data", np_Output_Rot_Data)
+            print("np_Output_Trans_Data", np_Output_Trans_Data)
             # print(centroid)
             # np_centroid = np.array(centroid)
             # mean = np.mean(np_centroid, axis=0)
