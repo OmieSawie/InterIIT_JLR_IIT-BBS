@@ -30,16 +30,6 @@ def decHomography(A, H):
     return (R, T)
 
 
-def print2Mat(arrayNum):
-    iterNum = iter(arrayNum)
-    num = next(iterNum)
-    matText = '[' + ' '.join(map(str, num))
-    for num in arrayNum:
-        matText += ';' + ' '.join(map(str, num))
-    matText += ']'
-    return matText
-
-
 def decRotation(R):
     x = math.atan2(R[2, 1], R[2, 2])
     y = math.atan2(-R[2, 0], math.sqrt(R[2, 1] * R[2, 1] + R[2, 2] * R[2, 2]))
